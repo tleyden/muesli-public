@@ -412,6 +412,9 @@ function showEditorView(meetingId) {
     // Setup download transcript button
     setupDownloadTranscriptButton(meeting);
 
+    // Setup download audio button
+    setupDownloadAudioButton(meeting);
+
     // Update debug panel with any available data if it's open
     const debugPanel = document.getElementById("debugPanel");
     if (debugPanel && !debugPanel.classList.contains("hidden")) {
@@ -510,7 +513,7 @@ function setupDownloadTranscriptButton(meeting) {
     newBtn.style.cursor = "not-allowed";
   } else {
     newBtn.disabled = false;
-    newBtn.title = "Download Transcript";
+    newBtn.title = "Download Local Transcript";
     newBtn.style.opacity = "1";
     newBtn.style.cursor = "pointer";
 
@@ -520,6 +523,37 @@ function setupDownloadTranscriptButton(meeting) {
         `${timestamp()} Downloading transcript for meeting: ${meeting.id}`,
       );
       downloadTranscript(meeting);
+    });
+  }
+}
+
+// Function to setup download audio button
+function setupDownloadAudioButton(meeting) {
+  const downloadBtn = document.getElementById("downloadAudioBtn");
+  if (!downloadBtn) return;
+
+  // Remove any existing event listeners
+  const newBtn = downloadBtn.cloneNode(true);
+  downloadBtn.parentNode.replaceChild(newBtn, downloadBtn);
+
+  // Check if audio file exists (based on recordingId)
+  if (!meeting.recordingId) {
+    newBtn.disabled = true;
+    newBtn.title = "No audio available";
+    newBtn.style.opacity = "0.5";
+    newBtn.style.cursor = "not-allowed";
+  } else {
+    newBtn.disabled = false;
+    newBtn.title = "Download Local Audio";
+    newBtn.style.opacity = "1";
+    newBtn.style.cursor = "pointer";
+
+    // Add click handler
+    newBtn.addEventListener("click", async () => {
+      console.log(
+        `${timestamp()} Downloading audio for meeting: ${meeting.id}`,
+      );
+      await downloadLocalAudio(meeting);
     });
   }
 }
@@ -569,6 +603,56 @@ function downloadTranscript(meeting) {
   URL.revokeObjectURL(url);
 
   console.log(`${timestamp()} Transcript downloaded successfully`);
+}
+
+// Function to download local audio file
+async function downloadLocalAudio(meeting) {
+  if (!meeting.recordingId) {
+    console.log(`${timestamp()} No recording ID available`);
+    alert("No audio recording available for this meeting");
+    return;
+  }
+
+  console.log(`${timestamp()} Preparing audio download for: ${meeting.title}`);
+
+  try {
+    // Request the audio file from the main process
+    const result = await window.electron.invoke(
+      "readAudioFile",
+      meeting.recordingId,
+    );
+
+    if (!result.success) {
+      console.log(`${timestamp()} Audio file not found: ${result.error}`);
+      alert("Audio file not found. The recording may not have completed yet.");
+      return;
+    }
+
+    console.log(`${timestamp()} Audio file loaded from: ${result.filePath}`);
+
+    // Create a blob from the buffer
+    const blob = new Blob([result.data], { type: "audio/wav" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+
+    // Create filename from meeting title
+    const safeTitle = meeting.title.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+    const dateStr = meeting.date
+      ? new Date(meeting.date).toISOString().split("T")[0]
+      : "unknown";
+    a.download = `audio_${safeTitle}_${dateStr}.wav`;
+
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    console.log(`${timestamp()} Audio downloaded successfully`);
+  } catch (error) {
+    console.error(`${timestamp()} Error downloading audio:`, error);
+    alert(`Error downloading audio: ${error.message}`);
+  }
 }
 
 function setupAutoSaveHandler() {
@@ -1651,6 +1735,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
           // Update download transcript button state
           setupDownloadTranscriptButton(meeting);
+
+          // Update download audio button state
+          setupDownloadAudioButton(meeting);
 
           // Show notification about new transcript if debug panel is closed
           const debugPanel = document.getElementById("debugPanel");

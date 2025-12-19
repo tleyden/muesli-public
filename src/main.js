@@ -1308,6 +1308,36 @@ ipcMain.handle("loadMeetingsData", async () => {
   }
 });
 
+// Handle getting user data path
+ipcMain.handle("getUserDataPath", async () => {
+  return app.getPath("userData");
+});
+
+// Handle reading audio file
+ipcMain.handle("readAudioFile", async (event, recordingId) => {
+  try {
+    const audioFilePath = path.join(RECORDING_PATH, `${recordingId}.wav`);
+
+    // Check if file exists
+    if (!fs.existsSync(audioFilePath)) {
+      return { success: false, error: "Audio file not found" };
+    }
+
+    // Read the file
+    const audioData = await fs.promises.readFile(audioFilePath);
+
+    // Return as buffer
+    return {
+      success: true,
+      data: audioData,
+      filePath: audioFilePath,
+    };
+  } catch (error) {
+    console.error("Error reading audio file:", error);
+    return { success: false, error: error.message };
+  }
+});
+
 // Function to create a new meeting note and start recording
 async function createMeetingNoteAndRecord(platformName) {
   console.log("Creating meeting note for platform:", platformName);
