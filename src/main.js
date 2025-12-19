@@ -4,6 +4,7 @@ const {
   ipcMain,
   protocol,
   Notification,
+  globalShortcut,
 } = require("electron");
 const path = require("node:path");
 const url = require("url");
@@ -87,8 +88,25 @@ const createWindow = () => {
 
   // Open the DevTools in development
   if (process.env.NODE_ENV === "development") {
-    // mainWindow.webContents.openDevTools();
+    mainWindow.webContents.openDevTools();
   }
+
+  // Add keyboard shortcut to toggle DevTools (Cmd+Shift+I or F12)
+  globalShortcut.register("CommandOrControl+Shift+I", () => {
+    if (mainWindow.webContents.isDevToolsOpened()) {
+      mainWindow.webContents.closeDevTools();
+    } else {
+      mainWindow.webContents.openDevTools();
+    }
+  });
+
+  globalShortcut.register("F12", () => {
+    if (mainWindow.webContents.isDevToolsOpened()) {
+      mainWindow.webContents.closeDevTools();
+    } else {
+      mainWindow.webContents.openDevTools();
+    }
+  });
 
   // Listen for navigation events
   ipcMain.on("navigate", (event, page) => {
