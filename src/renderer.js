@@ -409,6 +409,9 @@ function showEditorView(meetingId) {
     // Check if this note has an active recording and update the record button
     checkActiveRecordingState();
 
+    // Setup download transcript button
+    setupDownloadTranscriptButton(meeting);
+
     // Update debug panel with any available data if it's open
     const debugPanel = document.getElementById("debugPanel");
     if (debugPanel && !debugPanel.classList.contains("hidden")) {
@@ -490,6 +493,84 @@ function titleKeydownHandler(e) {
 let currentAutoSaveHandler = null;
 
 // Function to set up auto-save handler
+// Function to setup download transcript button
+function setupDownloadTranscriptButton(meeting) {
+  const downloadBtn = document.getElementById("downloadTranscriptBtn");
+  if (!downloadBtn) return;
+
+  // Remove any existing event listeners
+  const newBtn = downloadBtn.cloneNode(true);
+  downloadBtn.parentNode.replaceChild(newBtn, downloadBtn);
+
+  // Check if transcript exists
+  if (!meeting.transcript || meeting.transcript.length === 0) {
+    newBtn.disabled = true;
+    newBtn.title = "No transcript available";
+    newBtn.style.opacity = "0.5";
+    newBtn.style.cursor = "not-allowed";
+  } else {
+    newBtn.disabled = false;
+    newBtn.title = "Download Transcript";
+    newBtn.style.opacity = "1";
+    newBtn.style.cursor = "pointer";
+
+    // Add click handler
+    newBtn.addEventListener("click", () => {
+      console.log(
+        `${timestamp()} Downloading transcript for meeting: ${meeting.id}`,
+      );
+      downloadTranscript(meeting);
+    });
+  }
+}
+
+// Function to download transcript
+function downloadTranscript(meeting) {
+  if (!meeting.transcript || meeting.transcript.length === 0) {
+    console.log(`${timestamp()} No transcript available to download`);
+    alert("No transcript available for this meeting");
+    return;
+  }
+
+  console.log(
+    `${timestamp()} Preparing transcript download for: ${meeting.title}`,
+  );
+
+  // Format transcript as plain text
+  let transcriptText = `Meeting: ${meeting.title}\n`;
+  transcriptText += `Date: ${meeting.date ? new Date(meeting.date).toLocaleString() : "Unknown"}\n`;
+  transcriptText += `\n${"=".repeat(60)}\n\n`;
+
+  // Add each transcript entry
+  meeting.transcript.forEach((entry, index) => {
+    const time = entry.timestamp
+      ? new Date(entry.timestamp).toLocaleTimeString()
+      : "";
+    transcriptText += `[${time}] ${entry.speaker}:\n`;
+    transcriptText += `${entry.text}\n\n`;
+  });
+
+  // Create a blob and download
+  const blob = new Blob([transcriptText], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+
+  // Create filename from meeting title
+  const safeTitle = meeting.title.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+  const dateStr = meeting.date
+    ? new Date(meeting.date).toISOString().split("T")[0]
+    : "unknown";
+  a.download = `transcript_${safeTitle}_${dateStr}.txt`;
+
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  console.log(`${timestamp()} Transcript downloaded successfully`);
+}
+
 function setupAutoSaveHandler() {
   // Create a debounced auto-save handler
   const autoSaveHandler = debounce(async () => {
@@ -1567,6 +1648,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
           // Update the transcript area in the debug panel
           updateDebugTranscript(meeting.transcript);
+
+          // Update download transcript button state
+          setupDownloadTranscriptButton(meeting);
 
           // Show notification about new transcript if debug panel is closed
           const debugPanel = document.getElementById("debugPanel");
