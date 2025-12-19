@@ -528,7 +528,7 @@ function setupDownloadTranscriptButton(meeting) {
 }
 
 // Function to setup download audio button
-function setupDownloadAudioButton(meeting) {
+async function setupDownloadAudioButton(meeting) {
   const downloadBtn = document.getElementById("downloadAudioBtn");
   if (!downloadBtn) return;
 
@@ -536,25 +536,62 @@ function setupDownloadAudioButton(meeting) {
   const newBtn = downloadBtn.cloneNode(true);
   downloadBtn.parentNode.replaceChild(newBtn, downloadBtn);
 
-  // Check if audio file exists (based on recordingId)
+  // Log the meeting object to debug
+  console.log(
+    `${timestamp()} Setting up audio button for meeting:`,
+    meeting.id,
+  );
+  console.log(`${timestamp()} Meeting recordingId:`, meeting.recordingId);
+
+  // Check if audio file exists by trying to check the file
   if (!meeting.recordingId) {
+    console.log(
+      `${timestamp()} No recordingId found for meeting: ${meeting.id}`,
+    );
     newBtn.disabled = true;
     newBtn.title = "No audio available";
     newBtn.style.opacity = "0.5";
     newBtn.style.cursor = "not-allowed";
   } else {
-    newBtn.disabled = false;
-    newBtn.title = "Download Local Audio";
-    newBtn.style.opacity = "1";
-    newBtn.style.cursor = "pointer";
-
-    // Add click handler
-    newBtn.addEventListener("click", async () => {
-      console.log(
-        `${timestamp()} Downloading audio for meeting: ${meeting.id}`,
+    // Try to check if the file actually exists
+    try {
+      const checkResult = await window.electron.invoke(
+        "checkAudioFileExists",
+        meeting.recordingId,
       );
-      await downloadLocalAudio(meeting);
-    });
+
+      if (checkResult.exists) {
+        console.log(
+          `${timestamp()} Audio file exists at: ${checkResult.filePath}`,
+        );
+        newBtn.disabled = false;
+        newBtn.title = "Download Local Audio";
+        newBtn.style.opacity = "1";
+        newBtn.style.cursor = "pointer";
+
+        // Add click handler
+        newBtn.addEventListener("click", async () => {
+          console.log(
+            `${timestamp()} Downloading audio for meeting: ${meeting.id}`,
+          );
+          await downloadLocalAudio(meeting);
+        });
+      } else {
+        console.log(
+          `${timestamp()} Audio file not found for recordingId: ${meeting.recordingId}`,
+        );
+        newBtn.disabled = true;
+        newBtn.title = "Audio file not found";
+        newBtn.style.opacity = "0.5";
+        newBtn.style.cursor = "not-allowed";
+      }
+    } catch (error) {
+      console.error(`${timestamp()} Error checking audio file:`, error);
+      newBtn.disabled = true;
+      newBtn.title = "Error checking audio file";
+      newBtn.style.opacity = "0.5";
+      newBtn.style.cursor = "not-allowed";
+    }
   }
 }
 

@@ -1313,6 +1313,26 @@ ipcMain.handle("getUserDataPath", async () => {
   return app.getPath("userData");
 });
 
+// Handle checking if audio file exists
+ipcMain.handle("checkAudioFileExists", async (event, recordingId) => {
+  try {
+    const audioFilePath = path.join(RECORDING_PATH, `${recordingId}.wav`);
+    const exists = fs.existsSync(audioFilePath);
+
+    console.log(`Checking audio file for recordingId: ${recordingId}`);
+    console.log(`Audio file path: ${audioFilePath}`);
+    console.log(`File exists: ${exists}`);
+
+    return {
+      exists,
+      filePath: audioFilePath,
+    };
+  } catch (error) {
+    console.error("Error checking audio file:", error);
+    return { exists: false, error: error.message };
+  }
+});
+
 // Handle reading audio file
 ipcMain.handle("readAudioFile", async (event, recordingId) => {
   try {
