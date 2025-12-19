@@ -660,7 +660,14 @@ function initSDK() {
 
     try {
       // Save audio to WAV file if we have audio chunks
-      await saveAudioToWAV(evt.window.id);
+      const audioFilePath = await saveAudioToWAV(evt.window.id);
+
+      if (audioFilePath) {
+        console.log(`\n${"=".repeat(80)}`);
+        console.log(`WAV AUDIO FILE LOCATION:`);
+        console.log(`${audioFilePath}`);
+        console.log(`${"=".repeat(80)}\n`);
+      }
 
       // Update the note with recording information
       await updateNoteWithRecordingInfo(evt.window.id);
@@ -1551,8 +1558,12 @@ async function saveAudioToWAV(recordingId) {
 
     // Clear the buffer now that we've saved the file
     audioBuffers.clearBuffer(recordingId);
+
+    // Return the file path so we can log it after recording ends
+    return audioFilePath;
   } catch (error) {
     console.error("Error saving audio to WAV file:", error);
+    return null;
   }
 }
 
