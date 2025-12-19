@@ -195,6 +195,33 @@ const meetingsFilePath = path.join(app.getPath("userData"), "meetings.json");
 // Path for RecallAI SDK recordings
 const RECORDING_PATH = path.join(app.getPath("userData"), "recordings");
 
+// Global state to track audio buffers for each recording
+const audioBuffers = {
+  // Map of recordingId -> array of base64 audio chunks
+  buffers: {},
+
+  // Add audio chunk to a recording's buffer
+  addChunk: function (recordingId, audioData) {
+    if (!this.buffers[recordingId]) {
+      this.buffers[recordingId] = [];
+    }
+    this.buffers[recordingId].push(audioData);
+  },
+
+  // Get all chunks for a recording
+  getChunks: function (recordingId) {
+    return this.buffers[recordingId] || [];
+  },
+
+  // Clear buffer for a recording
+  clearBuffer: function (recordingId) {
+    if (this.buffers[recordingId]) {
+      delete this.buffers[recordingId];
+      console.log(`Cleared audio buffer for recording: ${recordingId}`);
+    }
+  },
+};
+
 // Global state to track active recordings
 const activeRecordings = {
   // Map of recordingId -> {noteId, platform, state}
@@ -632,6 +659,9 @@ function initSDK() {
     });
 
     try {
+      // Save audio to WAV file if we have audio chunks
+      await saveAudioToWAV(evt.window.id);
+
       // Update the note with recording information
       await updateNoteWithRecordingInfo(evt.window.id);
 
@@ -768,8 +798,11 @@ function initSDK() {
 
   // Listen for real-time transcript events
   RecallAiSdk.addEventListener("realtime-event", async (evt) => {
-    // Only log non-video frame events to prevent flooding the logger
-    if (evt.event !== "video_separate_png.data") {
+    // Only log non-video and non-audio frame events to prevent flooding the logger
+    if (
+      evt.event !== "video_separate_png.data" &&
+      evt.event !== "audio_mixed_raw.data"
+    ) {
       console.log("Received realtime event:", evt.event);
 
       // Log the SDK realtime-event event
@@ -800,6 +833,12 @@ function initSDK() {
       evt.data.data
     ) {
       await processVideoFrame(evt);
+    } else if (
+      evt.event === "audio_mixed_raw.data" &&
+      evt.data &&
+      evt.data.data
+    ) {
+      await processAudioData(evt);
     }
   });
 
@@ -1442,6 +1481,119 @@ async function createMeetingNoteAndRecord(platformName) {
     return id;
   } catch (error) {
     console.error("Error creating meeting note:", error);
+  }
+}
+
+// Function to save accumulated audio to WAV file
+async function saveAudioToWAV(recordingId) {
+  try {
+    const audioChunks = audioBuffers.getChunks(recordingId);
+
+    if (!audioChunks || audioChunks.length === 0) {
+      console.log(`No audio chunks to save for recording: ${recordingId}`);
+      return;
+    }
+
+    console.log(
+      `Saving ${audioChunks.length} audio chunks to WAV file for recording: ${recordingId}`,
+    );
+
+    // Audio format from recall.ai: mono channel, 16K samples, S16LE (16-bit signed little-endian)
+    const sampleRate = 16000;
+    const numChannels = 1;
+    const bitsPerSample = 16;
+
+    // Decode all base64 chunks and concatenate them
+    const audioBufferArray = audioChunks.map((chunk) =>
+      Buffer.from(chunk, "base64"),
+    );
+    const totalAudioData = Buffer.concat(audioBufferArray);
+
+    // Calculate WAV header values
+    const dataSize = totalAudioData.length;
+    const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+    const blockAlign = numChannels * (bitsPerSample / 8);
+
+    // Create WAV header (44 bytes)
+    const header = Buffer.alloc(44);
+
+    // RIFF chunk descriptor
+    header.write("RIFF", 0);
+    header.writeUInt32LE(36 + dataSize, 4); // File size - 8
+    header.write("WAVE", 8);
+
+    // fmt sub-chunk
+    header.write("fmt ", 12);
+    header.writeUInt32LE(16, 16); // Subchunk1Size (16 for PCM)
+    header.writeUInt16LE(1, 20); // AudioFormat (1 for PCM)
+    header.writeUInt16LE(numChannels, 22); // NumChannels
+    header.writeUInt32LE(sampleRate, 24); // SampleRate
+    header.writeUInt32LE(byteRate, 28); // ByteRate
+    header.writeUInt16LE(blockAlign, 32); // BlockAlign
+    header.writeUInt16LE(bitsPerSample, 34); // BitsPerSample
+
+    // data sub-chunk
+    header.write("data", 36);
+    header.writeUInt32LE(dataSize, 40); // Subchunk2Size
+
+    // Combine header and audio data
+    const wavFile = Buffer.concat([header, totalAudioData]);
+
+    // Save to file using the recording ID as filename
+    const audioFilePath = path.join(RECORDING_PATH, `${recordingId}.wav`);
+
+    await fs.promises.writeFile(audioFilePath, wavFile);
+    console.log(`Successfully saved audio file to: ${audioFilePath}`);
+    console.log(
+      `Audio file size: ${(wavFile.length / 1024 / 1024).toFixed(2)} MB`,
+    );
+    console.log(`Audio duration: ~${(dataSize / byteRate).toFixed(2)} seconds`);
+
+    // Clear the buffer now that we've saved the file
+    audioBuffers.clearBuffer(recordingId);
+  } catch (error) {
+    console.error("Error saving audio to WAV file:", error);
+  }
+}
+
+// Function to process audio data
+async function processAudioData(evt) {
+  try {
+    const windowId = evt.window?.id;
+    if (!windowId) {
+      console.error("Missing window ID in audio data event");
+      return;
+    }
+
+    // Check if we have this meeting in our active meetings
+    if (!global.activeMeetingIds || !global.activeMeetingIds[windowId]) {
+      // Silently skip if no active meeting found
+      return;
+    }
+
+    const noteId = global.activeMeetingIds[windowId].noteId;
+    if (!noteId) {
+      return;
+    }
+
+    // Extract the audio data (base64 encoded, mono channel, 16K samples, S16LE)
+    const audioData = evt.data.data;
+    if (!audioData || !audioData.buffer) {
+      return;
+    }
+
+    // Add the audio chunk to our buffer
+    audioBuffers.addChunk(windowId, audioData.buffer);
+
+    // Log occasionally to show we're receiving audio (every 100 chunks)
+    const chunkCount = audioBuffers.getChunks(windowId).length;
+    if (chunkCount % 100 === 0) {
+      console.log(
+        `Received ${chunkCount} audio chunks for recording: ${windowId}`,
+      );
+    }
+  } catch (error) {
+    console.error("Error processing audio data:", error);
   }
 }
 
