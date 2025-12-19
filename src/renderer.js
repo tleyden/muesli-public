@@ -8,6 +8,12 @@
 
 import "./index.css";
 
+// Utility function to get timestamp for logs
+function timestamp() {
+  const now = new Date();
+  return `[${now.toLocaleTimeString()}.${now.getMilliseconds().toString().padStart(3, "0")}]`;
+}
+
 // Create empty meetings data structure to be filled from the file
 const meetingsData = {
   upcomingMeetings: [],
@@ -285,8 +291,8 @@ function createMeetingCard(meeting) {
 
 // Function to show home view
 function showHomeView() {
-  console.log("========================================");
-  console.log("🏠 RENDERER: showHomeView() called");
+  console.log(`${timestamp()} ========================================`);
+  console.log(`${timestamp()} 🏠 RENDERER: showHomeView() called`);
 
   document.getElementById("homeView").style.display = "block";
   document.getElementById("editorView").style.display = "none";
@@ -296,9 +302,12 @@ function showHomeView() {
 
   // Show Record Meeting button and set its state based on meeting detection
   const joinMeetingBtn = document.getElementById("joinMeetingBtn");
-  console.log("🔍 RENDERER: Setting up Record Meeting button");
-  console.log("  - Button element found:", !!joinMeetingBtn);
-  console.log("  - window.meetingDetected:", window.meetingDetected);
+  console.log(`${timestamp()} 🔍 RENDERER: Setting up Record Meeting button`);
+  console.log(`${timestamp()}   - Button element found:`, !!joinMeetingBtn);
+  console.log(
+    `${timestamp()}   - window.meetingDetected:`,
+    window.meetingDetected,
+  );
 
   if (joinMeetingBtn) {
     // Always show the button
@@ -308,19 +317,22 @@ function showHomeView() {
     // Enable/disable based on meeting detection
     if (window.meetingDetected) {
       joinMeetingBtn.disabled = false;
-      console.log("  ✅ Button ENABLED (meeting detected)");
+      console.log(`${timestamp()}   ✅ Button ENABLED (meeting detected)`);
     } else {
       joinMeetingBtn.disabled = true;
-      console.log("  ❌ Button DISABLED (no meeting detected)");
+      console.log(`${timestamp()}   ❌ Button DISABLED (no meeting detected)`);
     }
-    console.log("  - Button display:", joinMeetingBtn.style.display);
-    console.log("  - Button disabled:", joinMeetingBtn.disabled);
+    console.log(
+      `${timestamp()}   - Button display:`,
+      joinMeetingBtn.style.display,
+    );
+    console.log(`${timestamp()}   - Button disabled:`, joinMeetingBtn.disabled);
   } else {
     console.error(
-      "❌ RENDERER ERROR: joinMeetingBtn element not found in showHomeView!",
+      `${timestamp()}   ❌ RENDERER ERROR: joinMeetingBtn element not found in showHomeView!`,
     );
   }
-  console.log("========================================");
+  console.log(`${timestamp()} ========================================`);
 }
 
 // Function to show editor view
@@ -1339,17 +1351,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Listen for meeting detection status updates
   window.electronAPI.onMeetingDetectionStatus((data) => {
-    console.log("========================================");
-    console.log("📩 RENDERER: Received meeting-detection-status event");
-    console.log("Data received:", JSON.stringify(data, null, 2));
-    console.log("========================================");
+    console.log(`${timestamp()} ========================================`);
+    console.log(
+      `${timestamp()} 📩 RENDERER: Received meeting-detection-status event`,
+    );
+    console.log(`${timestamp()} Data received:`, JSON.stringify(data, null, 2));
+    console.log(`${timestamp()} ========================================`);
 
     const joinMeetingBtn = document.getElementById("joinMeetingBtn");
 
     // Store the meeting detection state globally
     window.meetingDetected = data.detected;
     console.log(
-      "✅ RENDERER: window.meetingDetected set to:",
+      `${timestamp()} ✅ RENDERER: window.meetingDetected set to:`,
       window.meetingDetected,
     );
 
@@ -1358,27 +1372,39 @@ document.addEventListener("DOMContentLoaded", async () => {
       const homeView = document.getElementById("homeView");
       const inHomeView = homeView.style.display !== "none";
 
-      console.log("🔍 RENDERER: Button state check:");
-      console.log("  - Button found:", !!joinMeetingBtn);
-      console.log("  - In home view:", inHomeView);
-      console.log("  - Meeting detected:", data.detected);
+      console.log(`${timestamp()} 🔍 RENDERER: Button state check:`);
+      console.log(`${timestamp()}   - Button found:`, !!joinMeetingBtn);
+      console.log(`${timestamp()}   - In home view:`, inHomeView);
+      console.log(`${timestamp()}   - Meeting detected:`, data.detected);
 
       if (inHomeView) {
         // Always show the button, but enable/disable based on meeting detection
         joinMeetingBtn.style.display = "block";
         joinMeetingBtn.disabled = !data.detected;
-        console.log("  - Button display:", joinMeetingBtn.style.display);
-        console.log("  - Button disabled:", joinMeetingBtn.disabled);
         console.log(
-          data.detected ? "  ✅ Button ENABLED" : "  ❌ Button DISABLED",
+          `${timestamp()}   - Button display:`,
+          joinMeetingBtn.style.display,
+        );
+        console.log(
+          `${timestamp()}   - Button disabled:`,
+          joinMeetingBtn.disabled,
+        );
+        console.log(
+          data.detected
+            ? `${timestamp()}   ✅ Button ENABLED`
+            : `${timestamp()}   ❌ Button DISABLED`,
         );
       } else {
-        console.log("  ⚠️  Not in home view, skipping button update");
+        console.log(
+          `${timestamp()}   ⚠️  Not in home view, skipping button update`,
+        );
       }
     } else {
-      console.error("❌ RENDERER ERROR: joinMeetingBtn element not found!");
+      console.error(
+        `${timestamp()}   ❌ RENDERER ERROR: joinMeetingBtn element not found!`,
+      );
     }
-    console.log("========================================");
+    console.log(`${timestamp()} ========================================`);
   });
 
   // Listen for requests to open a meeting note (from notification click)
@@ -1652,14 +1678,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   document
     .getElementById("joinMeetingBtn")
     .addEventListener("click", async () => {
-      console.log("========================================");
-      console.log("🔘 RENDERER: Join Meeting button clicked");
-      console.log("window.meetingDetected:", window.meetingDetected);
+      console.log(`${timestamp()} ========================================`);
+      console.log(`${timestamp()} 🔘 RENDERER: Join Meeting button clicked`);
+      console.log(
+        `${timestamp()} window.meetingDetected:`,
+        window.meetingDetected,
+      );
 
       // Get the button element
       const joinButton = document.getElementById("joinMeetingBtn");
-      console.log("Button element found:", !!joinButton);
-      console.log("Button disabled state:", joinButton?.disabled);
+      console.log(`${timestamp()} Button element found:`, !!joinButton);
+      console.log(
+        `${timestamp()} Button disabled state:`,
+        joinButton?.disabled,
+      );
 
       // Show loading state
       const originalText = joinButton.textContent;
@@ -1672,22 +1704,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     `;
 
       // First check if there's a detected meeting
-      console.log("Calling checkForDetectedMeeting IPC...");
+      console.log(`${timestamp()} Calling checkForDetectedMeeting IPC...`);
       if (window.electronAPI.checkForDetectedMeeting) {
         try {
           const hasDetectedMeeting =
             await window.electronAPI.checkForDetectedMeeting();
-          console.log("checkForDetectedMeeting response:", hasDetectedMeeting);
+          console.log(
+            `${timestamp()} checkForDetectedMeeting response:`,
+            hasDetectedMeeting,
+          );
 
           if (hasDetectedMeeting) {
             console.log(
-              "✅ Found detected meeting, calling joinDetectedMeeting...",
+              `${timestamp()} ✅ Found detected meeting, calling joinDetectedMeeting...`,
             );
             await window.electronAPI.joinDetectedMeeting();
-            console.log("✅ joinDetectedMeeting completed");
+            console.log(`${timestamp()} ✅ joinDetectedMeeting completed`);
             // Keep button disabled as we're navigating to a different view
           } else {
-            console.log("❌ No active meeting detected");
+            console.log(`${timestamp()} ❌ No active meeting detected`);
 
             // Reset button state
             joinButton.disabled = false;

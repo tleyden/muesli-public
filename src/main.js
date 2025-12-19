@@ -14,6 +14,12 @@ const OpenAI = require("openai");
 const sdkLogger = require("./sdk-logger");
 require("dotenv").config();
 
+// Utility function to get timestamp for logs
+function timestamp() {
+  const now = new Date();
+  return `[${now.toLocaleTimeString()}.${now.getMilliseconds().toString().padStart(3, "0")}]`;
+}
+
 // Function to get the OpenRouter headers
 function getHeaderLines() {
   return [
@@ -147,11 +153,16 @@ app.whenReady().then(() => {
   mainWindow.webContents.on("did-finish-load", () => {
     // Send the initial meeting detection status
     const isDetected = detectedMeeting !== null;
-    console.log("========================================");
-    console.log("🔄 WINDOW LOADED - Sending initial meeting detection status");
-    console.log("detectedMeeting status:", detectedMeeting ? "ACTIVE" : "NULL");
-    console.log("Sending detected:", isDetected);
-    console.log("========================================");
+    console.log(`${timestamp()} ========================================`);
+    console.log(
+      `${timestamp()} 🔄 WINDOW LOADED - Sending initial meeting detection status`,
+    );
+    console.log(
+      `${timestamp()} detectedMeeting status:`,
+      detectedMeeting ? "ACTIVE" : "NULL",
+    );
+    console.log(`${timestamp()} Sending detected:`, isDetected);
+    console.log(`${timestamp()} ========================================`);
     mainWindow.webContents.send("meeting-detection-status", {
       detected: isDetected,
     });
@@ -381,12 +392,12 @@ async function createDesktopSdkUpload() {
 
 // Initialize the Recall.ai SDK
 function initSDK() {
-  console.log("========================================");
-  console.log("🚀 INITIALIZING RECALL.AI SDK");
-  console.log("Environment:", process.env.NODE_ENV);
-  console.log("API URL:", process.env.RECALLAI_API_URL);
-  console.log("Recording Path:", RECORDING_PATH);
-  console.log("========================================");
+  console.log(`${timestamp()} ========================================`);
+  console.log(`${timestamp()} 🚀 INITIALIZING RECALL.AI SDK`);
+  console.log(`${timestamp()} Environment:`, process.env.NODE_ENV);
+  console.log(`${timestamp()} API URL:`, process.env.RECALLAI_API_URL);
+  console.log(`${timestamp()} Recording Path:`, RECORDING_PATH);
+  console.log(`${timestamp()} ========================================`);
 
   // Log the SDK initialization
   sdkLogger.logApiCall("init", {
@@ -405,20 +416,23 @@ function initSDK() {
     },
   });
 
-  console.log("✅ SDK initialization call completed");
+  console.log(`${timestamp()} ✅ SDK initialization call completed`);
   console.log(
-    "⏳ Waiting for SDK events (meeting-detected, sdk-state-change, etc.)...",
+    `${timestamp()} ⏳ Waiting for SDK events (meeting-detected, sdk-state-change, etc.)...`,
   );
-  console.log("========================================");
+  console.log(`${timestamp()} ========================================`);
 
   // Listen for meeting detected events
   RecallAiSdk.addEventListener("meeting-detected", (evt) => {
-    console.log("========================================");
-    console.log("🎯 MEETING DETECTED EVENT FIRED");
-    console.log("Platform:", evt.window.platform);
-    console.log("Window ID:", evt.window.id);
-    console.log("Full event data:", JSON.stringify(evt, null, 2));
-    console.log("========================================");
+    console.log(`${timestamp()} ========================================`);
+    console.log(`${timestamp()} 🎯 MEETING DETECTED EVENT FIRED`);
+    console.log(`${timestamp()} Platform:`, evt.window.platform);
+    console.log(`${timestamp()} Window ID:`, evt.window.id);
+    console.log(
+      `${timestamp()} Full event data:`,
+      JSON.stringify(evt, null, 2),
+    );
+    console.log(`${timestamp()} ========================================`);
 
     // Log the meeting detected event
     sdkLogger.logEvent("meeting-detected", {
@@ -428,7 +442,7 @@ function initSDK() {
 
     detectedMeeting = evt;
     console.log(
-      "✅ detectedMeeting variable set to:",
+      `${timestamp()} ✅ detectedMeeting variable set to:`,
       detectedMeeting ? "ACTIVE" : "NULL",
     );
 
@@ -459,17 +473,19 @@ function initSDK() {
     notification.show();
 
     // Send the meeting detected status to the renderer process
-    console.log("📤 Sending meeting-detection-status to renderer process...");
+    console.log(
+      `${timestamp()} 📤 Sending meeting-detection-status to renderer process...`,
+    );
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send("meeting-detection-status", {
         detected: true,
       });
       console.log(
-        "✅ Successfully sent meeting-detection-status: { detected: true }",
+        `${timestamp()} ✅ Successfully sent meeting-detection-status: { detected: true }`,
       );
     } else {
       console.error(
-        "❌ ERROR: mainWindow is null or destroyed, cannot send meeting-detection-status",
+        `${timestamp()} ❌ ERROR: mainWindow is null or destroyed, cannot send meeting-detection-status`,
       );
     }
   });
@@ -559,10 +575,10 @@ function initSDK() {
 
   // Listen for meeting closed events
   RecallAiSdk.addEventListener("meeting-closed", (evt) => {
-    console.log("========================================");
-    console.log("🔴 MEETING CLOSED EVENT FIRED");
-    console.log("Window ID:", evt.window.id);
-    console.log("========================================");
+    console.log(`${timestamp()} ========================================`);
+    console.log(`${timestamp()} 🔴 MEETING CLOSED EVENT FIRED`);
+    console.log(`${timestamp()} Window ID:`, evt.window.id);
+    console.log(`${timestamp()} ========================================`);
 
     // Log the SDK meeting-closed event
     sdkLogger.logEvent("meeting-closed", {
@@ -576,28 +592,32 @@ function initSDK() {
       global.activeMeetingIds &&
       global.activeMeetingIds[evt.window.id]
     ) {
-      console.log(`Cleaning up meeting tracking for: ${evt.window.id}`);
+      console.log(
+        `${timestamp()} Cleaning up meeting tracking for: ${evt.window.id}`,
+      );
       delete global.activeMeetingIds[evt.window.id];
     }
 
     detectedMeeting = null;
     console.log(
-      "✅ detectedMeeting variable set to:",
+      `${timestamp()} ✅ detectedMeeting variable set to:`,
       detectedMeeting ? "ACTIVE" : "NULL",
     );
 
     // Send the meeting closed status to the renderer process
-    console.log("📤 Sending meeting-detection-status to renderer process...");
+    console.log(
+      `${timestamp()} 📤 Sending meeting-detection-status to renderer process...`,
+    );
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send("meeting-detection-status", {
         detected: false,
       });
       console.log(
-        "✅ Successfully sent meeting-detection-status: { detected: false }",
+        `${timestamp()} ✅ Successfully sent meeting-detection-status: { detected: false }`,
       );
     } else {
       console.error(
-        "❌ ERROR: mainWindow is null or destroyed, cannot send meeting-detection-status",
+        `${timestamp()} ❌ ERROR: mainWindow is null or destroyed, cannot send meeting-detection-status`,
       );
     }
   });
@@ -696,11 +716,11 @@ function initSDK() {
       },
       window,
     } = evt;
-    console.log("========================================");
-    console.log("🔄 SDK STATE CHANGE EVENT");
-    console.log("New state:", code);
-    console.log("Window ID:", window?.id);
-    console.log("========================================");
+    console.log(`${timestamp()} ========================================`);
+    console.log(`${timestamp()} 🔄 SDK STATE CHANGE EVENT`);
+    console.log(`${timestamp()} New state:`, code);
+    console.log(`${timestamp()} Window ID:`, window?.id);
+    console.log(`${timestamp()} ========================================`);
 
     // Log the SDK sdk-state-change event
     sdkLogger.logEvent("sdk-state-change", {
@@ -1993,26 +2013,32 @@ async function updateNoteWithRecordingInfo(recordingId) {
 
 // Function to check if there's a detected meeting available
 ipcMain.handle("checkForDetectedMeeting", async () => {
-  console.log("========================================");
-  console.log("🔍 IPC: checkForDetectedMeeting called");
-  console.log("detectedMeeting is:", detectedMeeting ? "ACTIVE" : "NULL");
+  console.log(`${timestamp()} ========================================`);
+  console.log(`${timestamp()} 🔍 IPC: checkForDetectedMeeting called`);
+  console.log(
+    `${timestamp()} detectedMeeting is:`,
+    detectedMeeting ? "ACTIVE" : "NULL",
+  );
   if (detectedMeeting) {
-    console.log("Meeting details:", {
+    console.log(`${timestamp()} Meeting details:`, {
       platform: detectedMeeting.window?.platform,
       windowId: detectedMeeting.window?.id,
     });
   }
-  console.log("Returning:", detectedMeeting !== null);
-  console.log("========================================");
+  console.log(`${timestamp()} Returning:`, detectedMeeting !== null);
+  console.log(`${timestamp()} ========================================`);
   return detectedMeeting !== null;
 });
 
 // Function to join the detected meeting
 ipcMain.handle("joinDetectedMeeting", async () => {
-  console.log("========================================");
-  console.log("🎬 IPC: joinDetectedMeeting called");
-  console.log("detectedMeeting status:", detectedMeeting ? "ACTIVE" : "NULL");
-  console.log("========================================");
+  console.log(`${timestamp()} ========================================`);
+  console.log(`${timestamp()} 🎬 IPC: joinDetectedMeeting called`);
+  console.log(
+    `${timestamp()} detectedMeeting status:`,
+    detectedMeeting ? "ACTIVE" : "NULL",
+  );
+  console.log(`${timestamp()} ========================================`);
   return joinDetectedMeeting();
 });
 
